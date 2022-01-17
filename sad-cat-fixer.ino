@@ -11,6 +11,7 @@ Date: January 9, 2021
 Arduino Resources used:
 ******************************************************************************/
 
+#include <IRremote.hpp>
 #include <LiquidCrystal_I2C.h>
 #include <Wire.h>
 
@@ -22,7 +23,7 @@ by any function in this program.
 
 LiquidCrystal_I2C lcd(0x27, 16, 2);
 
-const int DELAY_TIME = 300, DISPLAY_LENGTH = 16;
+const int DELAY_TIME = 300, DISPLAY_LENGTH = 16, IR_RECEIVE_PIN = 3;
 
 const char WORD_AUTOMATIC[] = "AUTOMATIC";
 const char WORD_MANUAL[] = "MANUAL";
@@ -39,8 +40,14 @@ type of void.
 ******************************************************************************/
 
 void setup() {
+  // initialize the LCD
   lcd.init();
   lcd.backlight();
+
+  Serial.begin(9600);
+
+  // initialize the IR Remote
+  IrReceiver.begin(IR_RECEIVE_PIN);
 }
 
 /******************************************************************************
@@ -48,7 +55,12 @@ Loop function: this function is called repeatedly for the lifespan of the
 program and has a return type of void.
 ******************************************************************************/
 
-void loop() {}
+void loop() {
+  if (IrReceiver.decode()) {
+    Serial.println(IrReceiver.decodedIRData.decodedRawData, DEC);
+    IrReceiver.resume();
+  }
+}
 
 /******************************************************************************
 writeText function: this function is called to write certain text to the
