@@ -56,10 +56,13 @@ program and has a return type of void.
 ******************************************************************************/
 
 void loop() {
-  if (IrReceiver.decode()) {
-    Serial.println(IrReceiver.decodedIRData.decodedRawData, DEC);
-    IrReceiver.resume();
-  }
+  /* writeText(WORD_AUTOMATIC, WORD_AUTOMATIC_SIZE); */
+  /* writeText(WORD_MANUAL, WORD_MANUAL_SIZE); */
+
+  /* if (IrReceiver.decode()) { */
+  /* Serial.println(IrReceiver.decodedIRData.decodedRawData, DEC); */
+  /* IrReceiver.resume(); */
+  /* } */
 }
 
 /******************************************************************************
