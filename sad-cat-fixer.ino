@@ -9,7 +9,7 @@ Author: Pranav Rao
 Date: January 9, 2021
 
 Arduino Resources used:
- ******************************************************************************/
+******************************************************************************/
 
 #include <IRremote.hpp>
 #include <LiquidCrystal_I2C.h>
@@ -19,11 +19,12 @@ Arduino Resources used:
 Constants: these are constant values that will be used to denote important
 and consistent information. They are GLOBAL variables, and therefore can be used
 by any function in this program.
- ******************************************************************************/
+******************************************************************************/
 
 LiquidCrystal_I2C lcd(0x27, 16, 2);
 
-const int DELAY_TIME = 300, DISPLAY_LENGTH = 16, IR_RECEIVE_PIN = 3;
+const int DELAY_TIME = 300, DISPLAY_LENGTH = 16, IR_RECEIVE_PIN = 3,
+          LASER_PIN = 6;
 
 const char WORD_AUTOMATIC[] = "AUTOMATIC";
 const char WORD_MANUAL[] = "MANUAL";
@@ -32,62 +33,20 @@ const int WORD_AUTOMATIC_SIZE =
     sizeof(WORD_AUTOMATIC) / sizeof(WORD_AUTOMATIC[0]);
 const int WORD_MANUAL_SIZE = sizeof(WORD_MANUAL) / sizeof(WORD_MANUAL[0]);
 
-int arrayPosition, screenPosition;
+int arrayPosition, screenPosition, currentTime, currentPreset;
 
 long randomInterval;
 
-long long clock1, clock2;
+long long clock1, clock2, clock3;
 
-bool manual = false, counterclockwise = false;
-
-/******************************************************************************
-  Setup function: this function is automatically called once, and has a return
-  type of void.
- ******************************************************************************/
-
-void setup() {
-  // initialize the LCD
-  lcd.init();
-  lcd.backlight();
-
-  Serial.begin(9600);
-
-  // initialize the IR Remote
-  IrReceiver.begin(IR_RECEIVE_PIN);
-
-  // initialize the random seed
-  randomSeed(analogRead(0));
-
-  clock1 = millis();
-  clock2 = millis();
-
-  randomInterval = random(5000, 15000);
-
-  Serial.println(randomInterval);
-}
+bool automatic = true, counterclockwise = false, laserOn = false;
 
 /******************************************************************************
-  Loop function: this function is called repeatedly for the lifespan of the
-  program and has a return type of void.
- ******************************************************************************/
-
-void loop() {
-  automaticMode();
-  /* writeText(WORD_AUTOMATIC, WORD_AUTOMATIC_SIZE); */
-  /* writeText(WORD_MANUAL, WORD_MANUAL_SIZE); */
-
-  /* if (IrReceiver.decode()) { */
-  /* Serial.println(IrReceiver.decodedIRData.decodedRawData, DEC); */
-  /* IrReceiver.resume(); */
-  /* } */
-}
-
-/******************************************************************************
-  writeText function: this function is called to write certain text to the
-  LCD. It takes a char pointer (a char array, essentially) and the length of the
-  char array, and returns void. A lot of the logic in this function was
- determined by complex math.
- ******************************************************************************/
+writeText function: this function is called to write certain text to the
+LCD. It takes a char pointer (a char array, essentially) and the length of the
+char array, and returns void. A lot of the logic in this function was
+determined by complex math.
+******************************************************************************/
 
 void writeText(const char *text, int len) {
 
@@ -129,7 +88,52 @@ void writeText(const char *text, int len) {
   }
 }
 
+void toggleLaser() {
+  if (laserOn) {
+    digitalWrite(LASER_PIN, LOW);
+  } else {
+    digitalWrite(LASER_PIN, HIGH);
+  }
+
+  laserOn = laserOn ? false : true;
+}
+
+void presetConstantOn() {
+  if (!laserOn) {
+    toggleLaser();
+  }
+}
+
+void presetConstantOff() {
+  if (laserOn) {
+    toggleLaser();
+  }
+}
+
+void presetSlowBlink() {
+  long long currentTime = millis();
+
+  if (currentTime > clock3 + 1500) {
+    toggleLaser();
+    clock3 = currentTime;
+  }
+}
+
+void presetFastBlink() {
+  long long currentTime = millis();
+
+  if (currentTime > clock3 + 200) {
+    toggleLaser();
+    clock3 = currentTime;
+  }
+}
+
+void (*presets[4])() = {presetConstantOff, presetConstantOn, presetSlowBlink,
+                        presetFastBlink};
+
 void rotate(int degrees) { return; }
+
+void manualMode() { return; }
 
 void automaticMode() {
   if (!counterclockwise) {
@@ -143,20 +147,65 @@ void automaticMode() {
   if (currentTime > clock2 + randomInterval) {
     Serial.println("Change direction");
     counterclockwise = counterclockwise ? false : true;
-    randomInterval = random(5000, 15000);
+    randomInterval = random(5000, 15001);
     clock2 = currentTime;
   }
 
   if (currentTime > clock1 + 5000) {
-    Serial.println("Change a preset");
+    currentPreset = random(4);
     clock1 = currentTime;
   }
 
   if (IrReceiver.decode()) {
     uint32_t decoded = IrReceiver.decodedIRData.decodedRawData;
     if (decoded == 3208707840) {
-      Serial.println("Switch to manual");
+      automatic = false;
     }
     IrReceiver.resume();
+  }
+
+  Serial.println(currentPreset);
+  (*presets[currentPreset])();
+}
+
+/******************************************************************************
+Setup function: this function is automatically called once, and has a return
+type of void.
+******************************************************************************/
+
+void setup() {
+  // initialize the LCD
+  lcd.init();
+  lcd.backlight();
+
+  Serial.begin(9600);
+
+  // initialize the IR Remote
+  IrReceiver.begin(IR_RECEIVE_PIN);
+
+  // initialize the random seed
+  randomSeed(analogRead(0));
+
+  clock1 = millis();
+  clock2 = millis();
+  clock3 = millis();
+
+  randomInterval = random(5000, 15001);
+  currentPreset = random(4);
+
+  pinMode(LASER_PIN, OUTPUT);
+  digitalWrite(LASER_PIN, LOW);
+}
+
+/******************************************************************************
+Loop function: this function is called repeatedly for the lifespan of the
+program and has a return type of void.
+******************************************************************************/
+
+void loop() {
+  if (automatic) {
+    automaticMode();
+  } else {
+    manualMode();
   }
 }
