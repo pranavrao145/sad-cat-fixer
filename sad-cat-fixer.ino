@@ -70,7 +70,7 @@ void writeText(const char *text, int len) {
 
       // if the position on the screen is real (above 0)
       if (screenPosition >= 0) {
-        // if the position of the character in the array is within the boudns of
+        // if the position of the character in the array is within the bounds of
         // the array
         if (arrayPosition < len - 1) {
           lcd.setCursor(screenPosition,
@@ -110,7 +110,7 @@ void presetConstantOff() {
   }
 }
 
-void presetSlowBlink() {
+void presetAutoSlowBlink() {
   long long currentTime = millis();
 
   if (currentTime > clock3 + 1500) {
@@ -119,7 +119,7 @@ void presetSlowBlink() {
   }
 }
 
-void presetFastBlink() {
+void presetAutoFastBlink() {
   long long currentTime = millis();
 
   if (currentTime > clock3 + 200) {
@@ -128,12 +128,67 @@ void presetFastBlink() {
   }
 }
 
-void (*presets[4])() = {presetConstantOff, presetConstantOn, presetSlowBlink,
-                        presetFastBlink};
+void presetManualSlowBlink() {
+  for (int i = 0; i < 5; i++) {
+    Serial.println("THIS BUTT");
+    toggleLaser();
+    delay(2000);
+    toggleLaser();
+    delay(2000);
+  }
+}
+
+void presetManualFastBlink() {
+  for (int i = 0; i < 5; i++) {
+    Serial.println("TO BE JU GRAB 💯");
+    toggleLaser();
+    delay(500);
+    toggleLaser();
+    delay(500);
+  }
+}
+
+void (*autoPresets[4])() = {presetConstantOff, presetConstantOn,
+                            presetAutoSlowBlink, presetAutoFastBlink};
+
+void (*manualPresets[4])() = {presetConstantOff, presetConstantOn,
+                              presetManualSlowBlink, presetManualFastBlink};
 
 void rotate(int degrees) { return; }
 
-void manualMode() { return; }
+void manualMode() {
+  if (IrReceiver.decode()) {
+    uint32_t decoded = IrReceiver.decodedIRData.decodedRawData;
+
+    switch (decoded) {
+    case 4077715200:
+      (*manualPresets[0])();
+      break;
+    case 3877175040:
+      (*manualPresets[1])();
+      break;
+    case 2707357440:
+      (*manualPresets[2])();
+      break;
+    case 4144561920:
+      (*manualPresets[3])();
+      break;
+    case 3141861120:
+      rotate(-30);
+      break;
+    case 3158572800:
+      rotate(30);
+      break;
+    case 3208707840:
+      automatic = true;
+      break;
+    }
+
+    IrReceiver.resume();
+  }
+
+  return;
+}
 
 void automaticMode() {
   if (!counterclockwise) {
@@ -164,8 +219,7 @@ void automaticMode() {
     IrReceiver.resume();
   }
 
-  Serial.println(currentPreset);
-  (*presets[currentPreset])();
+  (*autoPresets[currentPreset])();
 }
 
 /******************************************************************************
