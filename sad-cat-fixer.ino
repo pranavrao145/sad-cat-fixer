@@ -9,7 +9,7 @@ Author: Pranav Rao
 Date: January 9, 2021
 
 Arduino Resources used:
-******************************************************************************/
+ ******************************************************************************/
 
 #include <IRremote.hpp>
 #include <LiquidCrystal_I2C.h>
@@ -19,7 +19,7 @@ Arduino Resources used:
 Constants: these are constant values that will be used to denote important
 and consistent information. They are GLOBAL variables, and therefore can be used
 by any function in this program.
-******************************************************************************/
+ ******************************************************************************/
 
 LiquidCrystal_I2C lcd(0x27, 16, 2);
 
@@ -34,10 +34,16 @@ const int WORD_MANUAL_SIZE = sizeof(WORD_MANUAL) / sizeof(WORD_MANUAL[0]);
 
 int arrayPosition, screenPosition;
 
+long randomInterval;
+
+long long clock1, clock2;
+
+bool manual = false, counterclockwise = false;
+
 /******************************************************************************
-Setup function: this function is automatically called once, and has a return
-type of void.
-******************************************************************************/
+  Setup function: this function is automatically called once, and has a return
+  type of void.
+ ******************************************************************************/
 
 void setup() {
   // initialize the LCD
@@ -48,14 +54,25 @@ void setup() {
 
   // initialize the IR Remote
   IrReceiver.begin(IR_RECEIVE_PIN);
+
+  // initialize the random seed
+  randomSeed(analogRead(0));
+
+  clock1 = millis();
+  clock2 = millis();
+
+  randomInterval = random(5000, 15000);
+
+  Serial.println(randomInterval);
 }
 
 /******************************************************************************
-Loop function: this function is called repeatedly for the lifespan of the
-program and has a return type of void.
-******************************************************************************/
+  Loop function: this function is called repeatedly for the lifespan of the
+  program and has a return type of void.
+ ******************************************************************************/
 
 void loop() {
+  automaticMode();
   /* writeText(WORD_AUTOMATIC, WORD_AUTOMATIC_SIZE); */
   /* writeText(WORD_MANUAL, WORD_MANUAL_SIZE); */
 
@@ -66,11 +83,11 @@ void loop() {
 }
 
 /******************************************************************************
-writeText function: this function is called to write certain text to the
-LCD. It takes a char pointer (a char array, essentially) and the length of the
-char array, and returns void. A lot of the logic in this function was determined
-by complex math.
-******************************************************************************/
+  writeText function: this function is called to write certain text to the
+  LCD. It takes a char pointer (a char array, essentially) and the length of the
+  char array, and returns void. A lot of the logic in this function was
+ determined by complex math.
+ ******************************************************************************/
 
 void writeText(const char *text, int len) {
 
@@ -102,12 +119,44 @@ void writeText(const char *text, int len) {
           lcd.print(text[arrayPosition]); // print the correct character of text
                                           // to the LCD at the current position
         } else { // else if the position of the character is not within the
-                 // mounds of the array (print a space)
+          // mounds of the array (print a space)
           lcd.setCursor(screenPosition,
                         0); // set the cursor of the LCD to the correct position
           lcd.print(" ");   // print a space at the position of the curor
         }
       }
     }
+  }
+}
+
+void rotate(int degrees) { return; }
+
+void automaticMode() {
+  if (!counterclockwise) {
+    rotate(15);
+  } else {
+    rotate(-15);
+  }
+
+  long long currentTime = millis();
+
+  if (currentTime > clock2 + randomInterval) {
+    Serial.println("Change direction");
+    counterclockwise = counterclockwise ? false : true;
+    randomInterval = random(5000, 15000);
+    clock2 = currentTime;
+  }
+
+  if (currentTime > clock1 + 5000) {
+    Serial.println("Change a preset");
+    clock1 = currentTime;
+  }
+
+  if (IrReceiver.decode()) {
+    uint32_t decoded = IrReceiver.decodedIRData.decodedRawData;
+    if (decoded == 3208707840) {
+      Serial.println("Switch to manual");
+    }
+    IrReceiver.resume();
   }
 }
