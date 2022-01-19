@@ -13,6 +13,7 @@ Arduino Resources used:
 
 #include <IRremote.hpp>
 #include <LiquidCrystal_I2C.h>
+#include <Servo.h>
 #include <Wire.h>
 
 /******************************************************************************
@@ -24,7 +25,7 @@ by any function in this program.
 LiquidCrystal_I2C lcd(0x27, 16, 2);
 
 const int DELAY_TIME = 300, DISPLAY_LENGTH = 16, IR_RECEIVE_PIN = 3,
-          LASER_PIN = 6;
+          LASER_PIN = 4, SERVO_PIN = 6;
 
 const char WORD_AUTOMATIC[] = "AUTOMATIC";
 const char WORD_MANUAL[] = "MANUAL";
@@ -33,13 +34,16 @@ const int WORD_AUTOMATIC_SIZE =
     sizeof(WORD_AUTOMATIC) / sizeof(WORD_AUTOMATIC[0]);
 const int WORD_MANUAL_SIZE = sizeof(WORD_MANUAL) / sizeof(WORD_MANUAL[0]);
 
-int arrayPosition, screenPosition, currentTime, currentPreset;
+int arrayPosition, screenPosition, currentTime, currentPreset,
+    currentServoRotation = 0;
 
 long randomInterval;
 
-long long clock1, clock2, clock3;
+unsigned long clock1, clock2;
 
-bool automatic = true, counterclockwise = false, laserOn = false;
+bool automatic = true, laserOn = false;
+
+Servo servo;
 
 /******************************************************************************
 writeText function: this function is called to write certain text to the
@@ -111,26 +115,25 @@ void presetConstantOff() {
 }
 
 void presetAutoSlowBlink() {
-  long long currentTime = millis();
+  unsigned long currentTime = millis();
 
-  if (currentTime > clock3 + 1500) {
+  if (currentTime > clock2 + 1500) {
     toggleLaser();
-    clock3 = currentTime;
+    clock2 = currentTime;
   }
 }
 
 void presetAutoFastBlink() {
-  long long currentTime = millis();
+  unsigned long currentTime = millis();
 
-  if (currentTime > clock3 + 200) {
+  if (currentTime > clock2 + 200) {
     toggleLaser();
-    clock3 = currentTime;
+    clock2 = currentTime;
   }
 }
 
 void presetManualSlowBlink() {
   for (int i = 0; i < 5; i++) {
-    Serial.println("THIS BUTT");
     toggleLaser();
     delay(2000);
     toggleLaser();
@@ -140,7 +143,6 @@ void presetManualSlowBlink() {
 
 void presetManualFastBlink() {
   for (int i = 0; i < 5; i++) {
-    Serial.println("TO BE JU GRAB 💯");
     toggleLaser();
     delay(500);
     toggleLaser();
@@ -154,7 +156,27 @@ void (*autoPresets[4])() = {presetConstantOff, presetConstantOn,
 void (*manualPresets[4])() = {presetConstantOff, presetConstantOn,
                               presetManualSlowBlink, presetManualFastBlink};
 
-void rotate(int degrees) { return; }
+void rotateManual(int degrees) {
+  int newPosition = currentServoRotation + degrees;
+
+  if (newPosition > 180)
+    newPosition = 180;
+
+  if (newPosition < 0)
+    newPosition = 0;
+
+  servo.write(newPosition);
+}
+
+void rotateAutomatic(int degrees) {
+  int fixedDegrees = degrees < 0 ? -1 * degrees : degrees;
+  int newPosition = currentServoRotation + fixedDegrees;
+
+  currentServoRotation = newPosition;
+
+  servo.write(newPosition % 180);
+  delay(500);
+}
 
 void manualMode() {
   if (IrReceiver.decode()) {
@@ -174,13 +196,14 @@ void manualMode() {
       (*manualPresets[3])();
       break;
     case 3141861120:
-      rotate(-30);
+      rotateManual(-30);
       break;
     case 3158572800:
-      rotate(30);
+      rotateManual(30);
       break;
     case 3208707840:
       automatic = true;
+      Serial.println("Switching to AUTOMATIC");
       break;
     }
 
@@ -191,20 +214,9 @@ void manualMode() {
 }
 
 void automaticMode() {
-  if (!counterclockwise) {
-    rotate(15);
-  } else {
-    rotate(-15);
-  }
+  rotateAutomatic(15);
 
-  long long currentTime = millis();
-
-  if (currentTime > clock2 + randomInterval) {
-    Serial.println("Change direction");
-    counterclockwise = counterclockwise ? false : true;
-    randomInterval = random(5000, 15001);
-    clock2 = currentTime;
-  }
+  unsigned long currentTime = millis();
 
   if (currentTime > clock1 + 5000) {
     currentPreset = random(4);
@@ -214,6 +226,7 @@ void automaticMode() {
   if (IrReceiver.decode()) {
     uint32_t decoded = IrReceiver.decodedIRData.decodedRawData;
     if (decoded == 3208707840) {
+      Serial.println("Switching to MANUAL");
       automatic = false;
     }
     IrReceiver.resume();
@@ -242,13 +255,15 @@ void setup() {
 
   clock1 = millis();
   clock2 = millis();
-  clock3 = millis();
 
   randomInterval = random(5000, 15001);
   currentPreset = random(4);
 
   pinMode(LASER_PIN, OUTPUT);
   digitalWrite(LASER_PIN, LOW);
+
+  servo.attach(SERVO_PIN);
+  servo.write(currentServoRotation);
 }
 
 /******************************************************************************
