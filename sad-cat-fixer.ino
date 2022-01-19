@@ -35,7 +35,7 @@ const int WORD_AUTOMATIC_SIZE =
 const int WORD_MANUAL_SIZE = sizeof(WORD_MANUAL) / sizeof(WORD_MANUAL[0]);
 
 int arrayPosition, screenPosition, currentTime, currentPreset,
-    currentServoRotation = 0;
+    currentServoRotation = 0, automaticSpeed = 15;
 
 long randomInterval;
 
@@ -53,6 +53,8 @@ determined by complex math.
 ******************************************************************************/
 
 void writeText(const char *text, int len) {
+  lcd.clear();
+
   for (int i = 0; i < len - 1; i++) {
     lcd.setCursor(i, 0);
     lcd.print(text[i]);
@@ -182,7 +184,7 @@ void manualMode() {
 }
 
 void automaticMode() {
-  rotateAutomatic(15);
+  rotateAutomatic(automaticSpeed);
 
   unsigned long currentTime = millis();
 
@@ -193,10 +195,24 @@ void automaticMode() {
 
   if (IrReceiver.decode()) {
     uint32_t decoded = IrReceiver.decodedIRData.decodedRawData;
-    if (decoded == 3208707840) {
+    switch (decoded) {
+    case 3208707840:
       Serial.println("Switching to MANUAL");
       writeText(WORD_MANUAL, WORD_MANUAL_SIZE);
       automatic = false;
+      break;
+    case 4127850240:
+      Serial.println("Increasing speed by 5");
+      automaticSpeed += 5;
+      if (automaticSpeed > 45)
+        automaticSpeed = 45;
+      break;
+    case 4161273600:
+      Serial.println("Decreasing speed by 5");
+      automaticSpeed -= 5;
+      if (automaticSpeed < 0)
+        automaticSpeed = 0;
+      break;
     }
     IrReceiver.resume();
   }
