@@ -53,42 +53,9 @@ determined by complex math.
 ******************************************************************************/
 
 void writeText(const char *text, int len) {
-
-  // this loop starts from zero and iterates to the length of the string, plus
-  // the length of the display (16), plus one.
-  for (int noOfCharsToPrint = 0; noOfCharsToPrint < len + DISPLAY_LENGTH + 1;
-       noOfCharsToPrint++) {
-
-    // wait a certain time before printing the character
-    delay(DELAY_TIME);
-
-    // a second loop which is used to determine where exactly the character must
-    // be printed
-    for (int charPositionToPrint = noOfCharsToPrint; charPositionToPrint > 0;
-         charPositionToPrint--) {
-      // find the position of the character in the text string
-      arrayPosition = noOfCharsToPrint - charPositionToPrint;
-
-      // find the position at which the character must be printed on the screen
-      screenPosition = 16 - charPositionToPrint;
-
-      // if the position on the screen is real (above 0)
-      if (screenPosition >= 0) {
-        // if the position of the character in the array is within the bounds of
-        // the array
-        if (arrayPosition < len - 1) {
-          lcd.setCursor(screenPosition,
-                        0); // set the cursor of the LCD to the correct position
-          lcd.print(text[arrayPosition]); // print the correct character of text
-                                          // to the LCD at the current position
-        } else { // else if the position of the character is not within the
-          // mounds of the array (print a space)
-          lcd.setCursor(screenPosition,
-                        0); // set the cursor of the LCD to the correct position
-          lcd.print(" ");   // print a space at the position of the curor
-        }
-      }
-    }
+  for (int i = 0; i < len - 1; i++) {
+    lcd.setCursor(i, 0);
+    lcd.print(text[i]);
   }
 }
 
@@ -204,6 +171,7 @@ void manualMode() {
     case 3208707840:
       automatic = true;
       Serial.println("Switching to AUTOMATIC");
+      writeText(WORD_AUTOMATIC, WORD_AUTOMATIC_SIZE);
       break;
     }
 
@@ -227,6 +195,7 @@ void automaticMode() {
     uint32_t decoded = IrReceiver.decodedIRData.decodedRawData;
     if (decoded == 3208707840) {
       Serial.println("Switching to MANUAL");
+      writeText(WORD_MANUAL, WORD_MANUAL_SIZE);
       automatic = false;
     }
     IrReceiver.resume();
@@ -264,6 +233,8 @@ void setup() {
 
   servo.attach(SERVO_PIN);
   servo.write(currentServoRotation);
+
+  writeText(WORD_AUTOMATIC, WORD_AUTOMATIC_SIZE);
 }
 
 /******************************************************************************
