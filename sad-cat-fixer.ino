@@ -10,7 +10,7 @@ Date: January 9, 2021
 
 Arduino Resources used:
 ******************************************************************************/
-// TODO: buzzer, logging, comments
+// TODO: comments
 
 #include <IRremote.hpp>
 #include <LiquidCrystal_I2C.h>
@@ -54,6 +54,8 @@ determined by complex math.
 ******************************************************************************/
 
 void writeText(const char *text, int len) {
+  Serial.println("LOG: Writing text to LCD.");
+
   lcd.clear();
 
   for (int i = 0; i < len - 1; i++) {
@@ -150,32 +152,41 @@ void rotateAutomatic(int degrees) {
 
 void manualMode() {
   if (IrReceiver.decode()) {
+    Serial.println("LOG: Received input from IR remote. Attempting to parse.");
+
     uint32_t decoded = IrReceiver.decodedIRData.decodedRawData;
 
     switch (decoded) {
     case 4077715200:
+      Serial.println("LOG: Remote input is button 1.");
       (*manualPresets[0])();
       break;
     case 3877175040:
+      Serial.println("LOG: Remote input is button 2.");
       (*manualPresets[1])();
       break;
     case 2707357440:
+      Serial.println("LOG: Remote input is button 3.");
       (*manualPresets[2])();
       break;
     case 4144561920:
+      Serial.println("LOG: Remote input is button 4.");
       (*manualPresets[3])();
       break;
     case 3141861120:
+      Serial.println("LOG: Remote input is button BACK.");
       rotateManual(-30);
       break;
     case 3158572800:
+      Serial.println("LOG: Remote input is button FORWARD.");
       rotateManual(30);
       break;
     case 3208707840:
+      Serial.println("LOG: Remote input is button PLAY/PAUSE.");
+      Serial.println("LOG: Switching to AUTO mode.");
       automatic = true;
-      Serial.println("Switching to AUTOMATIC");
       writeText(WORD_AUTOMATIC, WORD_AUTOMATIC_SIZE);
-      /* tone(BUZZER_PIN, 300, 1000); */
+      // tone(BUZZER_PIN, 300, 1000);
       break;
     }
 
@@ -191,33 +202,43 @@ void automaticMode() {
   unsigned long currentTime = millis();
 
   if (currentTime > clock1 + 5000) {
+    Serial.print("LOG: Selecting new random preset. New preset: ");
     currentPreset = random(4);
+    Serial.println(currentPreset);
     clock1 = currentTime;
   }
 
   if (IrReceiver.decode()) {
+    Serial.println("LOG: Received input from IR remote. Attempting to parse.");
+
     uint32_t decoded = IrReceiver.decodedIRData.decodedRawData;
 
     switch (decoded) {
     case 3208707840:
-      Serial.println("Switching to MANUAL");
+      Serial.println("LOG: Remote input is button PLAY/PAUSE.");
+      Serial.println("LOG: Switching to MANUAL mode.");
       writeText(WORD_MANUAL, WORD_MANUAL_SIZE);
       automatic = false;
-      /* tone(BUZZER_PIN, 300, 1000); */
+      // tone(BUZZER_PIN, 300, 1000);
       break;
     case 4127850240:
-      Serial.println("Increasing speed by 5");
+      Serial.println("LOG: Increasing automatic speed by 5.");
       automaticSpeed += 5;
-      if (automaticSpeed > 45)
+      if (automaticSpeed > 45) {
+        Serial.println("WARN: Automatic speed is above 45. Resetting to 45.");
         automaticSpeed = 45;
+      }
       break;
     case 4161273600:
-      Serial.println("Decreasing speed by 5");
+      Serial.println("LOG: Decreasing automatic speed by 5.");
       automaticSpeed -= 5;
-      if (automaticSpeed < 0)
+      if (automaticSpeed < 0) {
+        Serial.println("WARN: Automatic speed is below 0. Resetting to 0.");
         automaticSpeed = 0;
+      }
       break;
     }
+
     IrReceiver.resume();
   }
 
@@ -230,32 +251,48 @@ type of void.
 ******************************************************************************/
 
 void setup() {
+  Serial.begin(9600);
+
+  Serial.println("LOG: Starting init sequence.");
+
   // initialize the LCD
+  Serial.println("LOG: Initializing LCD.");
   lcd.init();
   lcd.backlight();
 
-  Serial.begin(9600);
-
+  Serial.println("LOG: Initializing IR Remote.");
   // initialize the IR Remote
   IrReceiver.begin(IR_RECEIVE_PIN);
 
   // initialize the random seed
+  Serial.println("LOG: Planting randomizer seed using empty analog input 0.");
   randomSeed(analogRead(0));
 
+  // initialize the clocks
+  Serial.println("LOG: Initializing clocks.");
   clock1 = millis();
   clock2 = millis();
 
+  // set random variables
+  Serial.println("LOG: Setting required random values.");
   randomInterval = random(5000, 15001);
   currentPreset = random(4);
 
+  // set up laser
+  Serial.println("LOG: Setting up laser.");
   pinMode(LASER_PIN, OUTPUT);
   digitalWrite(LASER_PIN, LOW);
 
+  // set up servo
+  Serial.println("LOG: Setting up servo.");
   servo.attach(SERVO_PIN);
   servo.write(currentServoRotation);
 
+  Serial.println("LOG: Switching to AUTO mode.");
   writeText(WORD_AUTOMATIC, WORD_AUTOMATIC_SIZE);
-  /* tone(BUZZER_PIN, 300, 1000); */
+
+  Serial.println("LOG: Playing mode switch tone.");
+  // tone(BUZZER_PIN, 300, 1000);
 }
 
 /******************************************************************************
