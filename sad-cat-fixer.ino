@@ -10,6 +10,7 @@ Date: January 9, 2021
 
 Arduino Resources used:
 ******************************************************************************/
+// TODO: buzzer, logging, comments
 
 #include <IRremote.hpp>
 #include <LiquidCrystal_I2C.h>
@@ -25,7 +26,7 @@ by any function in this program.
 LiquidCrystal_I2C lcd(0x27, 16, 2);
 
 const int DELAY_TIME = 300, DISPLAY_LENGTH = 16, IR_RECEIVE_PIN = 3,
-          LASER_PIN = 4, SERVO_PIN = 6;
+          LASER_PIN = 4, SERVO_PIN = 6, BUZZER_PIN = 8;
 
 const char WORD_AUTOMATIC[] = "AUTOMATIC";
 const char WORD_MANUAL[] = "MANUAL";
@@ -174,6 +175,7 @@ void manualMode() {
       automatic = true;
       Serial.println("Switching to AUTOMATIC");
       writeText(WORD_AUTOMATIC, WORD_AUTOMATIC_SIZE);
+      /* tone(BUZZER_PIN, 300, 1000); */
       break;
     }
 
@@ -195,11 +197,13 @@ void automaticMode() {
 
   if (IrReceiver.decode()) {
     uint32_t decoded = IrReceiver.decodedIRData.decodedRawData;
+
     switch (decoded) {
     case 3208707840:
       Serial.println("Switching to MANUAL");
       writeText(WORD_MANUAL, WORD_MANUAL_SIZE);
       automatic = false;
+      /* tone(BUZZER_PIN, 300, 1000); */
       break;
     case 4127850240:
       Serial.println("Increasing speed by 5");
@@ -251,6 +255,7 @@ void setup() {
   servo.write(currentServoRotation);
 
   writeText(WORD_AUTOMATIC, WORD_AUTOMATIC_SIZE);
+  /* tone(BUZZER_PIN, 300, 1000); */
 }
 
 /******************************************************************************
